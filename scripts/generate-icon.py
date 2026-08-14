@@ -1,10 +1,13 @@
 #!/usr/bin/env python3
-"""Generate the TenLing app icon set from the brand master artwork.
+"""Generate the TenLing app icon set from the brand mark.
 
-Primary path: rasterize `assets/icon/master-source.jpg` (or .png) through a
+Primary path: paint the procedural master mark — a crisp white page with a
+folded corner carrying a markdown `#`, two text lines, and a coral
+signature stroke, over a deep ink-teal gradient — then rasterize it through a
 squircle mask into PNG / ICO / ICNS for Tauri, public/, and docs/.
 
-Fallback: if no master exists, paint a procedural mark (document + light stroke).
+A raster image can still be used instead via --source (or
+assets/icon/master-source.jpg) for one-off experiments.
 
 Usage:
   python3 scripts/generate-icon.py
@@ -81,85 +84,155 @@ def load_master(path: Path, size: int = 2048) -> Image.Image:
     return img.convert("RGBA")
 
 
-def paint_fallback(size: int) -> Image.Image:
-    """Procedural document + light stroke if master art is missing."""
+def thick_line(draw: ImageDraw.ImageDraw, p0, p1, width: int, fill) -> None:
+    """Line with rounded caps (PIL lines have none)."""
+    draw.line([p0, p1], fill=fill, width=width)
+    r = width / 2.0
+    for p in (p0, p1):
+        draw.ellipse([p[0] - r, p[1] - r, p[0] + r, p[1] + r], fill=fill)
+
+
+def vertical_gradient(size: tuple[int, int], stops: list[tuple[float, tuple[int, int, int, int]]]) -> Image.Image:
+    """Multi-stop vertical gradient. stops: [(pos 0..1, RGBA), ...]"""
+    w, h = size
+    img = Image.new("RGBA", (1, h))
+    px = img.load()
+    for y in range(h):
+        t = y / max(1, h - 1)
+        for i in range(len(stops) - 1):
+            t0, c0 = stops[i]
+            t1, c1 = stops[i + 1]
+            if t0 <= t <= t1:
+                u = (t - t0) / max(1e-6, t1 - t0)
+                px[0, y] = tuple(int(c0[k] + (c1[k] - c0[k]) * u) for k in range(4))
+                break
+    return img.resize((w, h))
+
+
+def radial_glow(size: int, center: tuple[float, float], radius: float, color, peak_alpha: int) -> Image.Image:
+    """Soft radial light, composited to add depth to the background."""
+    small = 128
+    layer = Image.new("RGBA", (small, small), (0, 0, 0, 0))
+    px = layer.load()
+    cx, cy = center[0] * small, center[1] * small
+    r = radius * small
+    for y in range(small):
+        for x in range(small):
+            d = math.hypot(x - cx, y - cy) / r
+            if d < 1.0:
+                px[x, y] = (*color, int(peak_alpha * (1.0 - d) ** 1.8))
+    return layer.resize((size, size), Image.Resampling.BICUBIC)
+
+
+def paint_hash(size: int, center: tuple[float, float], half: float, bar: int) -> Image.Image:
+    """The markdown `#` as a standalone layer filled with a teal gradient."""
+    layer = Image.new("RGBA", (size, size), (0, 0, 0, 0))
+    mask = Image.new("L", (size, size), 0)
+    md = ImageDraw.Draw(mask)
+    cx, cy = center
+    slant = half * 0.22  # vertical bars lean right, like a pen stroke
+    for dx in (-half * 0.40, half * 0.40):
+        thick_line(md, (cx + dx + slant, cy - half), (cx + dx - slant, cy + half), bar, 255)
+    for dy in (-half * 0.36, half * 0.36):
+        thick_line(md, (cx - half * 1.08, cy + dy), (cx + half * 1.08, cy + dy), bar, 255)
+    fill = vertical_gradient(
+        (size, size),
+        [
+            (0.0, (23, 138, 122, 255)),  # #178A7A
+            (1.0, (10, 74, 68, 255)),  # #0A4A44
+        ],
+    )
+    layer.paste(fill, (0, 0), mask)
+    return layer
+
+
+def paint_master(size: int) -> Image.Image:
+    """The TenLing mark: white page, markdown #, coral signature stroke."""
     img = Image.new("RGBA", (size, size), (0, 0, 0, 0))
-    draw = ImageDraw.Draw(img)
 
-    # Gradient: sapphire → violet
-    for y in range(size):
-        t = y / max(1, size - 1)
-        r = int(55 + (150 - 55) * t)
-        g = int(110 + (90 - 110) * t)
-        b = int(245 + (220 - 245) * t)
-        draw.line([(0, y), (size - 1, y)], fill=(r, g, b, 255))
+    # Background: deep ink teal, warmly lit from the top-left
+    img = vertical_gradient(
+        (size, size),
+        [
+            (0.0, (21, 122, 110, 255)),  # #157A6E
+            (0.55, (14, 94, 86, 255)),  # #0E5E56
+            (1.0, (9, 56, 53, 255)),  # #093835
+        ],
+    )
+    img = Image.alpha_composite(
+        img, radial_glow(size, (0.22, 0.14), 0.95, (255, 238, 214), 40)
+    )
+    img = Image.alpha_composite(img, radial_glow(size, (0.9, 1.0), 1.1, (4, 26, 24), 46))
 
-    # Top sheen
-    sheen = Image.new("RGBA", (size, size), (0, 0, 0, 0))
-    sd = ImageDraw.Draw(sheen)
-    for y in range(size // 2):
-        a = int(70 * (1 - y / (size / 2)) ** 1.5)
-        sd.line([(0, y), (size - 1, y)], fill=(255, 255, 255, a))
-    img = Image.alpha_composite(img, sheen)
+    # Page geometry (page-local coordinates, rotated into place at the end)
+    pw, ph = int(size * 0.50), int(size * 0.60)
+    px0, py0 = int((size - pw) / 2), int(size * 0.215)
+    radius = int(pw * 0.09)
 
-    # Soft page (tilted via affine)
-    page = Image.new("RGBA", (size, size), (0, 0, 0, 0))
-    pd = ImageDraw.Draw(page)
-    margin = int(size * 0.22)
-    pw, ph = size - 2 * margin, int(size * 0.52)
-    px0, py0 = margin, int(size * 0.24)
-    # shadow
+    # Drop shadow
     shadow = Image.new("RGBA", (size, size), (0, 0, 0, 0))
     ImageDraw.Draw(shadow).rounded_rectangle(
-        [px0 + size * 0.02, py0 + size * 0.03, px0 + pw + size * 0.02, py0 + ph + size * 0.03],
-        radius=int(size * 0.04),
-        fill=(40, 20, 90, 50),
+        [px0, py0 + size * 0.02, px0 + pw, py0 + ph + size * 0.02],
+        radius=radius,
+        fill=(6, 34, 30, 82),
     )
-    shadow = shadow.filter(ImageFilter.GaussianBlur(radius=max(4, size // 50)))
+    shadow = shadow.filter(ImageFilter.GaussianBlur(radius=max(4, size // 55)))
     img = Image.alpha_composite(img, shadow)
 
-    pd.rounded_rectangle(
-        [px0, py0, px0 + pw, py0 + ph],
-        radius=int(size * 0.04),
-        fill=(250, 250, 255, 245),
-    )
-    # folded corner
-    fold = int(size * 0.10)
+    # Page body + folded corner, clipped to the rounded silhouette
+    page = Image.new("RGBA", (size, size), (0, 0, 0, 0))
+    pd = ImageDraw.Draw(page)
+    pd.rounded_rectangle([px0, py0, px0 + pw, py0 + ph], radius=radius, fill=(253, 253, 255, 255))
+    fold = int(pw * 0.20)
     pd.polygon(
-        [
-            (px0 + pw - fold, py0),
-            (px0 + pw, py0),
-            (px0 + pw, py0 + fold),
-        ],
-        fill=(210, 200, 240, 255),
+        [(px0 + pw - fold, py0), (px0 + pw, py0 + fold), (px0 + pw - fold, py0 + fold)],
+        fill=(221, 216, 206, 255),
     )
     pd.polygon(
-        [
-            (px0 + pw - fold, py0),
-            (px0 + pw - fold, py0 + fold),
-            (px0 + pw, py0 + fold),
-        ],
-        fill=(235, 230, 250, 255),
+        [(px0 + pw - fold, py0), (px0 + pw, py0), (px0 + pw, py0 + fold)],
+        fill=(240, 237, 229, 255),
     )
-    # light stroke
-    stroke = Image.new("RGBA", (size, size), (0, 0, 0, 0))
-    sd = ImageDraw.Draw(stroke)
-    # quadratic-ish polyline
+    clip = Image.new("L", (size, size), 0)
+    ImageDraw.Draw(clip).rounded_rectangle(
+        [px0, py0, px0 + pw, py0 + ph], radius=radius, fill=255
+    )
+    page.putalpha(clip)
+
+    # Page content: markdown #, two text lines, coral signature stroke
+    content = paint_hash(size, (px0 + pw * 0.47, py0 + ph * 0.36), pw * 0.185, max(6, size // 44))
+    cd = ImageDraw.Draw(content)
+    line_h = max(6, size // 72)
+    for i, frac_w in enumerate((0.52, 0.38)):
+        lw = pw * frac_w
+        lx = px0 + (pw - lw) / 2
+        ly = py0 + ph * (0.62 + i * 0.11)
+        cd.rounded_rectangle(
+            [lx, ly, lx + lw, ly + line_h],
+            radius=line_h / 2,
+            fill=(196, 205, 201, 255),
+        )
+    # Coral signature: a loose pen curve under the text
+    coral = (255, 107, 74, 255)
+    y_base = py0 + ph * 0.86
     pts = []
-    for i in range(40):
-        u = i / 39
-        x = px0 + pw * 0.22 + pw * 0.55 * u
-        y = py0 + ph * 0.72 - ph * 0.55 * math.sin(u * math.pi * 0.85) + ph * 0.08 * u
+    for i in range(48):
+        u = i / 47
+        x = px0 + pw * (0.16 + 0.68 * u)
+        y = y_base + ph * 0.045 * math.sin(u * math.pi * 1.7) - ph * 0.02 * u
         pts.append((x, y))
-    for w, a in ((size // 28, 40), (size // 45, 120), (size // 70, 230)):
-        sd.line(pts, fill=(255, 255, 255, a), width=max(2, w), joint="curve")
-    # tip glow
-    tip = pts[-1]
-    r = size // 40
-    sd.ellipse([tip[0] - r, tip[1] - r, tip[0] + r, tip[1] + r], fill=(255, 255, 255, 180))
-    stroke = stroke.filter(ImageFilter.GaussianBlur(radius=max(1, size // 200)))
-    page = Image.alpha_composite(page, stroke)
-    page = page.rotate(-8, resample=Image.Resampling.BICUBIC, center=(size / 2, size / 2))
+    sw = max(4, size // 110)
+    glow = Image.new("RGBA", (size, size), (0, 0, 0, 0))
+    ImageDraw.Draw(glow).line(pts, fill=(255, 107, 74, 70), width=sw * 3, joint="curve")
+    glow = glow.filter(ImageFilter.GaussianBlur(radius=max(2, size // 220)))
+    content = Image.alpha_composite(content, glow)
+    cd = ImageDraw.Draw(content)
+    cd.line(pts, fill=coral, width=sw, joint="curve")
+    for p in (pts[0], pts[-1]):
+        r = sw / 2.0
+        cd.ellipse([p[0] - r, p[1] - r, p[0] + r, p[1] + r], fill=coral)
+
+    page = Image.alpha_composite(page, content)
+    page = page.rotate(-7, resample=Image.Resampling.BICUBIC, center=(size / 2, size * 0.51))
     img = Image.alpha_composite(img, page)
     return img
 
@@ -175,36 +248,43 @@ def apply_squircle(src: Image.Image) -> Image.Image:
 
 
 def write_svg() -> None:
-    """Vector companion approximating the document + light stroke mark."""
+    """Vector companion matching the painted mark (page, #, coral stroke)."""
     svg = """<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
   <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="0.2" y2="1">
-      <stop offset="0%" stop-color="#3B78F5"/>
-      <stop offset="45%" stop-color="#6B6AF0"/>
-      <stop offset="100%" stop-color="#B06AE8"/>
+    <linearGradient id="bg" x1="0" y1="0" x2="0.15" y2="1">
+      <stop offset="0%" stop-color="#157A6E"/>
+      <stop offset="55%" stop-color="#0E5E56"/>
+      <stop offset="100%" stop-color="#093835"/>
     </linearGradient>
-    <linearGradient id="page" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="#FFFFFF"/>
-      <stop offset="100%" stop-color="#F0ECFF"/>
+    <linearGradient id="hash" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#178A7A"/>
+      <stop offset="100%" stop-color="#0A4A44"/>
     </linearGradient>
-    <linearGradient id="stroke" x1="0" y1="1" x2="1" y2="0">
-      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.35"/>
-      <stop offset="50%" stop-color="#FFFFFF" stop-opacity="0.95"/>
-      <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0.7"/>
-    </linearGradient>
+    <radialGradient id="glow" cx="0.22" cy="0.14" r="0.95">
+      <stop offset="0%" stop-color="#FFEED6" stop-opacity="0.16"/>
+      <stop offset="100%" stop-color="#FFEED6" stop-opacity="0"/>
+    </radialGradient>
     <filter id="soft" x="-20%" y="-20%" width="140%" height="140%">
-      <feDropShadow dx="0" dy="2" stdDeviation="2.5" flood-color="#2A1A60" flood-opacity="0.25"/>
+      <feDropShadow dx="0" dy="2.4" stdDeviation="2.6" flood-color="#06221E" flood-opacity="0.45"/>
     </filter>
   </defs>
   <rect x="2" y="2" width="124" height="124" rx="28" ry="28" fill="url(#bg)"/>
-  <g transform="rotate(-8 64 64)" filter="url(#soft)">
-    <rect x="34" y="30" width="60" height="72" rx="7" fill="url(#page)"/>
-    <path d="M78 30 L94 30 L94 46 Z" fill="#D8D0F5"/>
-    <path d="M78 30 L78 46 L94 46 Z" fill="#EDE8FC"/>
-    <path d="M48 86 C58 62 72 52 88 40" fill="none" stroke="url(#stroke)" stroke-width="4.5"
-          stroke-linecap="round"/>
-    <circle cx="88" cy="40" r="3.2" fill="#FFFFFF" fill-opacity="0.9"/>
+  <rect x="2" y="2" width="124" height="124" rx="28" ry="28" fill="url(#glow)"/>
+  <g transform="rotate(-7 64 65)" filter="url(#soft)">
+    <path d="M41.5 32 h36 l9.5 9.5 v47 a6.5 6.5 0 0 1 -6.5 6.5 h-32.5 a6.5 6.5 0 0 1 -6.5 -6.5 v-50 a6.5 6.5 0 0 1 6.5 -6.5 z" fill="#FDFDFF"/>
+    <path d="M77.5 32 L87 41.5 L77.5 41.5 Z" fill="#DDD8CE"/>
+    <path d="M77.5 32 L87 32 L87 41.5 Z" fill="#F0EDE5"/>
+    <g stroke="url(#hash)" stroke-width="4.6" stroke-linecap="round">
+      <path d="M57.2 47 L54.8 73" fill="none"/>
+      <path d="M70.2 47 L67.8 73" fill="none"/>
+      <path d="M50.5 55.5 L77.5 55.5" fill="none"/>
+      <path d="M49.5 64.5 L76.5 64.5" fill="none"/>
+    </g>
+    <rect x="50" y="79" width="29" height="3.4" rx="1.7" fill="#C4CDC9"/>
+    <rect x="54.5" y="86" width="20" height="3.4" rx="1.7" fill="#C4CDC9"/>
+    <path d="M46 96 C55 99 62 93.5 71 95.5 C76 96.6 80 95.8 83 93.8" fill="none"
+          stroke="#FF6B4A" stroke-width="3.1" stroke-linecap="round"/>
   </g>
 </svg>
 """
@@ -257,8 +337,8 @@ def main() -> None:
         print(f"Using master art: {source}")
         base = load_master(source, 2048)
     else:
-        print("No master art — painting procedural fallback")
-        base = paint_fallback(2048)
+        print("Painting the TenLing mark (page, #, coral stroke)")
+        base = paint_master(2048)
 
     hi = apply_squircle(base)
     master = hi.resize((1024, 1024), Image.Resampling.LANCZOS)
