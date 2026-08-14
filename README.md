@@ -51,6 +51,7 @@ Most Markdown tools force a choice: a heavy knowledge base, a split source/previ
 | | |
 | --- | --- |
 | **Visual editing** | Bold, italic, headings, lists, tasks, quotes, code, tables, images, and links from the toolbar or shortcuts |
+| **LaTeX math** | `$inline$` and `$$display$$` formulas typeset with KaTeX as you write |
 | **Slash commands** | Type `/` for a Notion-style menu of blocks — headings, lists, tables, and more |
 | **Presentation mode** | Turn H1 and H2 headings into slides — no separate deck to maintain |
 | **Outline & files** | Jump sections from the outline; open a folder and browse Markdown nearby |

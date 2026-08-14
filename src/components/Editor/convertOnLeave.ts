@@ -28,6 +28,11 @@ const PATTERNS: { mark: string; regex: RegExp }[] = [
   { mark: 'code', regex: new RegExp(`\`(${INNER('`')})\``, 'g') },
 ];
 const LINK_RE = /\[([^\]\n]+)\]\(([^)\s]+)\)/g;
+// Same flanking rules as the marked tokenizer in lib/markdown/math.ts:
+// no $$, no whitespace against the delimiters, no digit after the closer
+const MATH_RE = /\$(?!\$)([^\s$](?:[^$\n]*[^\s$])?)\$(?![\d$])/g;
+// Inline $$...$$ (display math inside a paragraph); tried before MATH_RE
+const MATH_DISPLAY_RE = /\$\$([^$\n]+?)\$\$/g;
 
 function findMatches(text: string): Match[] {
   const matches: Match[] = [];
@@ -44,6 +49,19 @@ function findMatches(text: string): Match[] {
     for (const m of text.matchAll(regex)) {
       matches.push({ from: m.index, to: m.index + m[0].length, text: m[1], mark });
     }
+  }
+  // Inline math becomes an atom node, not a mark (handled in convertBlock);
+  // $$...$$ display math first so the single-$ pattern can't split it
+  for (const m of text.matchAll(MATH_DISPLAY_RE)) {
+    matches.push({
+      from: m.index,
+      to: m.index + m[0].length,
+      text: m[1],
+      mark: 'mathDisplay',
+    });
+  }
+  for (const m of text.matchAll(MATH_RE)) {
+    matches.push({ from: m.index, to: m.index + m[0].length, text: m[1], mark: 'math' });
   }
   // Greedy left-to-right, longest first on ties; skip overlaps (so `**x**`
   // is bold, not italic around `*x*`)
@@ -71,6 +89,19 @@ function convertBlock(state: EditorState, pos: number): Transaction | null {
   if (!block?.isTextblock || block.type.name === 'codeBlock') return null;
 
   const text = block.textContent;
+
+  // A paragraph holding only $$...$$ becomes a display-math node
+  if (block.type.name === 'paragraph' && state.schema.nodes.mathBlock) {
+    const display = /^\$\$([\s\S]+?)\$\$$/.exec(text.trim());
+    if (display) {
+      return state.tr.replaceWith(
+        pos,
+        pos + block.nodeSize,
+        state.schema.nodes.mathBlock.create({ tex: display[1].trim() }),
+      );
+    }
+  }
+
   const matches = findMatches(text);
   const headingMatch = block.type.name === 'paragraph' ? /^(#{1,6})\s/.exec(text) : null;
   if (matches.length === 0 && !headingMatch) return null;
@@ -79,14 +110,22 @@ function convertBlock(state: EditorState, pos: number): Transaction | null {
   const tr = state.tr;
   const schema = state.schema;
   const deletions: { from: number; to: number }[] = [];
+  // Inline math matches replace their range with a mathInline atom node
+  const replacements: { from: number; to: number; tex: string; display: boolean }[] = [];
 
   for (const m of matches) {
+    const from = contentStart + m.from;
+    const to = contentStart + m.to;
+    if (m.mark === 'math' || m.mark === 'mathDisplay') {
+      if (schema.nodes.mathInline) {
+        replacements.push({ from, to, tex: m.text, display: m.mark === 'mathDisplay' });
+      }
+      continue;
+    }
     const markType = schema.marks[m.mark];
     if (!markType) continue;
     const openLen = delimiterLength(m.mark, 'open');
     const closeLen = delimiterLength(m.mark, 'close', m.href);
-    const from = contentStart + m.from;
-    const to = contentStart + m.to;
     tr.addMark(
       from + openLen,
       to - closeLen,
@@ -101,9 +140,26 @@ function convertBlock(state: EditorState, pos: number): Transaction | null {
     deletions.push({ from: contentStart, to: contentStart + headingMatch[0].length });
   }
 
-  // Delete right-to-left so earlier positions stay valid
+  // Apply right-to-left so earlier positions stay valid
   deletions.sort((a, b) => b.from - a.from);
-  for (const d of deletions) tr.delete(d.from, d.to);
+  replacements.sort((a, b) => b.from - a.from);
+  let di = 0;
+  let ri = 0;
+  while (di < deletions.length || ri < replacements.length) {
+    const d = deletions[di];
+    const r = replacements[ri];
+    if (r && (!d || r.from > d.from)) {
+      tr.replaceWith(
+        r.from,
+        r.to,
+        schema.nodes.mathInline.create({ tex: r.tex, display: r.display }),
+      );
+      ri++;
+    } else if (d) {
+      tr.delete(d.from, d.to);
+      di++;
+    }
+  }
 
   return tr.steps.length > 0 ? tr : null;
 }

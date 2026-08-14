@@ -11,6 +11,11 @@ export interface Slide {
 function textFromNode(node: JSONContent | undefined): string {
   if (!node) return '';
   if (node.type === 'text') return node.text ?? '';
+  // Math atoms have no text children; show the TeX source on slides
+  if (node.type === 'mathInline' || node.type === 'mathBlock') {
+    const tex = node.attrs?.tex;
+    return typeof tex === 'string' && tex ? `$${tex}$` : '';
+  }
   if (!node.content) return '';
   return node.content.map(textFromNode).join('');
 }

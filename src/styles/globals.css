@@ -578,6 +578,26 @@ button {
   outline: 2px solid var(--color-accent);
 }
 
+/* KaTeX math nodes (atom; node view renders the typeset output) */
+.tl-math-block {
+  margin: 0.6em 0;
+  text-align: center;
+  overflow-x: auto;
+}
+
+/* Inline $$...$$ — display math that lives inside a paragraph */
+.tl-math-display {
+  display: block;
+  margin: 0.4em 0;
+  text-align: center;
+  overflow-x: auto;
+}
+
+.tl-math.ProseMirror-selectednode {
+  outline: 2px solid var(--color-accent);
+  border-radius: 4px;
+}
+
 /* Find & replace match highlights */
 .ProseMirror .tl-find-match {
   background: rgba(255, 214, 0, 0.35);

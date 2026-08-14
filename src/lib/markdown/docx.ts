@@ -25,6 +25,7 @@ import {
   WidthType,
 } from 'docx';
 import { markdownToHtml } from './io';
+import { decodeTex } from './math';
 
 /** Image payload ready for embedding; a resolver returns null to drop it. */
 export interface ResolvedImage {
@@ -88,6 +89,14 @@ function inlineRuns(node: Node, style: InlineStyle, out: TextRun[]): void {
   }
   if (node.nodeType !== Node.ELEMENT_NODE) return;
   const el = node as Element;
+  // Math placeholders degrade to their TeX source (no OMML conversion)
+  if (el.hasAttribute('data-tl-math')) {
+    const tex = decodeTex(el.getAttribute('data-tl-math') ?? '');
+    if (!tex) return;
+    const display = el.getAttribute('data-tl-math-display') === 'block';
+    out.push(textRun(display ? `$$${tex}$$` : `$${tex}$`, style));
+    return;
+  }
   switch (el.tagName) {
     case 'STRONG':
     case 'B':
@@ -203,6 +212,18 @@ function tableOf(el: Element): Table {
 }
 
 async function blockChildren(el: Element, inQuote: boolean, ctx: WalkCtx, out: Block[]) {
+  // Display math degrades to a centered paragraph with the TeX source
+  if (el.hasAttribute('data-tl-math')) {
+    const tex = decodeTex(el.getAttribute('data-tl-math') ?? '');
+    out.push(
+      new Paragraph({
+        alignment: AlignmentType.CENTER,
+        children: tex ? [textRun(`$$${tex}$$`, {})] : [],
+        ...quoteStyle(inQuote),
+      }),
+    );
+    return;
+  }
   switch (el.tagName) {
     case 'H1':
     case 'H2':

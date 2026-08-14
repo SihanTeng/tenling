@@ -10,6 +10,7 @@ import { ConvertOnLeave } from './convertOnLeave';
 import { FindReplace } from './findReplace';
 import { createImage } from './image';
 import { LivePreview } from './livePreview';
+import { MathBlock, MathInline } from './math';
 import { MdCommentBlock, MdCommentInline } from './mdComment';
 import { SlashCommands } from './slashCommands';
 import { TableFromPipes } from './tableFromPipes';
@@ -88,6 +89,9 @@ export function createExtensions() {
     TableFromPipes,
     MdCommentBlock,
     MdCommentInline,
+    // LaTeX: $...$ / $$...$$ placeholders become KaTeX-rendered atom nodes
+    MathBlock,
+    MathInline,
     FindReplace,
     // "/" menu: state-only plugin; SlashMenuOverlay renders and handles keys
     SlashCommands,

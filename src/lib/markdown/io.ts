@@ -1,6 +1,7 @@
 import { marked } from 'marked';
 import TurndownService from 'turndown';
 import { commentMarkedExtensions, decodeComment } from './comments';
+import { decodeTex, mathMarkedExtensions } from './math';
 
 /** Configure marked for GFM-ish HTML output suitable for TipTap. */
 marked.setOptions({
@@ -8,9 +9,10 @@ marked.setOptions({
   breaks: false,
 });
 
-// Intercept HTML comments before marked's html tokenizer so they survive
-// the editor as placeholder elements (see comments.ts)
-marked.use({ extensions: commentMarkedExtensions });
+// Intercept HTML comments and LaTeX math before marked's built-in
+// tokenizers so they survive the editor as placeholder elements
+// (see comments.ts and math.ts)
+marked.use({ extensions: [...commentMarkedExtensions, ...mathMarkedExtensions] });
 
 const turndown = new TurndownService({
   headingStyle: 'atx',
@@ -44,6 +46,22 @@ turndown.addRule('mdComment', {
     const el = node as HTMLElement;
     const raw = decodeComment(el.getAttribute('data-tl-comment') ?? '');
     return el.nodeName === 'DIV' ? `\n\n${raw}\n\n` : raw;
+  },
+});
+
+// LaTeX math: restore the original $...$ / $$...$$ from the placeholder
+// elements produced on load (block math owns its lines, inline doesn't)
+turndown.addRule('math', {
+  filter: (node) => {
+    if (node.nodeName !== 'DIV' && node.nodeName !== 'SPAN') return false;
+    return (node as HTMLElement).hasAttribute('data-tl-math');
+  },
+  replacement: (_content, node) => {
+    const el = node as HTMLElement;
+    const tex = decodeTex(el.getAttribute('data-tl-math') ?? '');
+    if (el.nodeName === 'DIV') return `\n\n$$${tex}$$\n\n`;
+    // Inline $$...$$ keeps its display delimiters (see math.ts)
+    return el.getAttribute('data-tl-math-display') === 'block' ? `$$${tex}$$` : `$${tex}$`;
   },
 });
 
@@ -119,6 +137,9 @@ export function looksLikeMarkdown(text: string): boolean {
     /\*\*[^*\n]+\*\*/.test(text) ||
     /(^|[^*])\*[^*\n]+\*/.test(text) ||
     /`[^`\n]+`/.test(text) ||
+    // LaTeX math (same flanking rules as the tokenizer in math.ts)
+    /\$\$[^$\n]+\$\$/.test(text) ||
+    /\$(?!\$)[^\s$](?:[^$\n]*[^\s$])?\$(?![\d$])/.test(text) ||
     // links and images (alt text may be empty)
     /!?\[[^\]\n]*\]\([^)\n]+\)/.test(text)
   );

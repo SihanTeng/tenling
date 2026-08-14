@@ -69,6 +69,10 @@ const EXPORT_CSS = `
   th { background: rgba(0, 0, 0, 0.04); font-weight: 600; }
   img { max-width: 100%; border-radius: 8px; }
   hr { border: none; border-top: 1px solid rgba(0, 0, 0, 0.12); margin: 1.4em 0; }
+  /* Math placeholders carry MathML-only KaTeX output (see lib/markdown/math),
+     which browsers render natively — no fonts or CSS needed here */
+  .tl-math-block { margin: 0.9em 0; text-align: center; overflow-x: auto; }
+  .tl-math-inline[data-tl-math-display="block"] { display: block; margin: 0.9em 0; text-align: center; overflow-x: auto; }
   .hljs-keyword, .hljs-selector-tag, .hljs-built_in { color: #cf222e; }
   .hljs-string, .hljs-attr, .hljs-template-string { color: #0a3069; }
   .hljs-number, .hljs-literal { color: #0550ae; }
