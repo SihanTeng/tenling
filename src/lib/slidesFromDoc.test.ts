@@ -93,6 +93,26 @@ describe('slidesFromDoc', () => {
     expect(new Set(ids).size).toBe(2);
   });
 
+  it('keeps math as $...$ source on slides', () => {
+    const doc: JSONContent = {
+      type: 'doc',
+      content: [
+        heading(1, 'Math'),
+        {
+          type: 'paragraph',
+          content: [
+            { type: 'text', text: '辐角 ' },
+            { type: 'mathInline', attrs: { tex: '\\theta' } },
+            { type: 'text', text: ' 满足' },
+          ],
+        },
+        { type: 'mathBlock', attrs: { tex: 'z = 2' } },
+      ],
+    };
+    // $...$ / $$...$$ source is typeset by the slide renderer (MathLine)
+    expect(slidesFromDoc(doc)[0].body).toEqual(['辐角 $\\theta$ 满足', '$$z = 2$$']);
+  });
+
   it('caps body lines at 10 per slide', () => {
     const doc: JSONContent = {
       type: 'doc',

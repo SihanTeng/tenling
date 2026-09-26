@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { htmlToMarkdown, looksLikeMarkdown, markdownToHtml } from './io';
-import { decodeTex } from './math';
+import { decodeTex, splitMathSegments } from './math';
 
 /** Pull the base64 TeX payload out of the first math placeholder. */
 function texOf(html: string): string {
@@ -87,5 +87,24 @@ describe('looksLikeMarkdown math', () => {
 
   it('does not flag currency', () => {
     expect(looksLikeMarkdown('pay $5 and $5 more')).toBe(false);
+  });
+});
+
+describe('splitMathSegments', () => {
+  it('splits inline and display math from text', () => {
+    expect(splitMathSegments('辐角 $\\theta$ 满足, see $$z = 2$$ ok')).toEqual([
+      { kind: 'text', text: '辐角 ' },
+      { kind: 'math', text: '\\theta', display: false },
+      { kind: 'text', text: ' 满足, see ' },
+      { kind: 'math', text: 'z = 2', display: true },
+      { kind: 'text', text: ' ok' },
+    ]);
+  });
+
+  it('leaves currency and plain text untouched', () => {
+    expect(splitMathSegments('pay $5 and $5 more')).toEqual([
+      { kind: 'text', text: 'pay $5 and $5 more' },
+    ]);
+    expect(splitMathSegments('no math here')).toEqual([{ kind: 'text', text: 'no math here' }]);
   });
 });

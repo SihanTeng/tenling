@@ -44,6 +44,11 @@ function blockToLines(node: JSONContent): string[] {
       const t = textFromNode(node).trim();
       return t ? [t] : [];
     }
+    case 'mathBlock': {
+      // Display math gets its own slide line, delimited for KaTeX rendering
+      const tex = node.attrs?.tex;
+      return typeof tex === 'string' && tex ? [`$$${tex}$$`] : [];
+    }
     default:
       return [];
   }

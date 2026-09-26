@@ -19,6 +19,31 @@ import { decodeComment, encodeComment } from './comments';
 export const encodeTex = encodeComment;
 export const decodeTex = decodeComment;
 
+export interface MathSegment {
+  kind: 'text' | 'math';
+  /** Literal text, or the TeX source for math segments. */
+  text: string;
+  display?: boolean;
+}
+
+// Same flanking rules as the tokenizers below: $$...$$ first, then $...$
+// with no $$, no whitespace against the delimiters, no digit after the close
+const SEGMENT_RE = /\$\$([^$\n]+?)\$\$|\$(?!\$)([^\s$](?:[^$\n]*[^\s$])?)\$(?![\d$])/g;
+
+/** Split a plain-text line into text and math spans (presentation mode). */
+export function splitMathSegments(line: string): MathSegment[] {
+  const out: MathSegment[] = [];
+  let last = 0;
+  for (const m of line.matchAll(SEGMENT_RE)) {
+    if (m.index > last) out.push({ kind: 'text', text: line.slice(last, m.index) });
+    const display = m[1] !== undefined;
+    out.push({ kind: 'math', text: display ? m[1].trim() : m[2], display });
+    last = m.index + m[0].length;
+  }
+  if (last < line.length) out.push({ kind: 'text', text: line.slice(last) });
+  return out;
+}
+
 function renderMathMl(tex: string, displayMode: boolean): string {
   return katex.renderToString(tex, {
     displayMode,

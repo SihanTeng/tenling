@@ -1,3 +1,5 @@
+import katex from 'katex';
+import { Fragment } from 'react';
 import {
   AbsoluteFill,
   interpolate,
@@ -6,6 +8,7 @@ import {
   useCurrentFrame,
   useVideoConfig,
 } from 'remotion';
+import { splitMathSegments } from '../../lib/markdown/math';
 import type { Slide } from '../../lib/slidesFromDoc';
 
 export interface SlideDeckProps {
@@ -14,6 +17,34 @@ export interface SlideDeckProps {
 }
 
 const FRAMES_PER_SLIDE = 90;
+
+/** Render a slide line, typesetting $...$ / $$...$$ segments with KaTeX. */
+const MathLine: React.FC<{ line: string }> = ({ line }) => {
+  const segments = splitMathSegments(line);
+  if (segments.every((s) => s.kind === 'text')) return line;
+  const seen = new Map<string, number>();
+  return segments.map((seg) => {
+    // Occurrence-suffixed keys stay unique even when a segment repeats
+    const base = `${seg.kind}:${seg.text}`;
+    const n = (seen.get(base) ?? 0) + 1;
+    seen.set(base, n);
+    const key = n === 1 ? base : `${base}#${n}`;
+    return seg.kind === 'text' ? (
+      <Fragment key={key}>{seg.text}</Fragment>
+    ) : (
+      <span
+        key={key}
+        // biome-ignore lint/security/noDangerouslySetInnerHtml: KaTeX generates this markup itself from the document's own TeX source — no HTML is interpolated
+        dangerouslySetInnerHTML={{
+          __html: katex.renderToString(seg.text, {
+            displayMode: seg.display === true,
+            throwOnError: false,
+          }),
+        }}
+      />
+    );
+  });
+};
 
 /** Pair body lines with React keys that stay unique even when text repeats. */
 function keyedLines(lines: string[]): { key: string; line: string }[] {
@@ -69,11 +100,12 @@ const SlideCard: React.FC<{
             lineHeight: 1.15,
           }}
         >
-          {slide.title}
+          <MathLine line={slide.title} />
         </h1>
         <div style={{ marginTop: 28, display: 'flex', flexDirection: 'column', gap: 12 }}>
           {keyedLines(slide.body).map(({ key, line }) => (
-            <p
+            // div, not p: display-math lines contain block-level KaTeX markup
+            <div
               key={key}
               style={{
                 margin: 0,
@@ -83,8 +115,8 @@ const SlideCard: React.FC<{
                 fontWeight: 400,
               }}
             >
-              {line}
-            </p>
+              <MathLine line={line} />
+            </div>
           ))}
         </div>
       </div>
