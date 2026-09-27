@@ -1,0 +1,92 @@
+---
+import '../styles/global.css';
+
+interface Props {
+  title: string;
+  description: string;
+  noindex?: boolean;
+}
+
+const { title, description, noindex = false } = Astro.props;
+const canonical = new URL(Astro.url.pathname, Astro.site);
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <meta name="author" content="Sihan Teng" />
+    <link rel="canonical" href={canonical} />
+    {noindex && <meta name="robots" content="noindex" />}
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <meta name="theme-color" content="#093835" />
+    <meta name="color-scheme" content="light" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="TenLing" />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={canonical} />
+    <meta property="og:image" content="https://tenling.brighteng.org/apple-touch-icon.png" />
+    <meta name="twitter:card" content="summary" />
+    <link rel="author" href="https://me.brighteng.org/" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400..800&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&family=Space+Mono:wght@400;700&display=swap"
+    />
+    <script type="application/ld+json" set:html={JSON.stringify({
+      '@context': 'https://schema.org',
+      '@type': 'SoftwareApplication',
+      name: 'TenLing',
+      applicationCategory: 'WritingApplication',
+      operatingSystem: 'macOS, Linux, Windows',
+      url: 'https://tenling.brighteng.org/',
+      description,
+      downloadUrl: 'https://github.com/SihanTeng/tenling/releases/latest',
+      codeRepository: 'https://github.com/SihanTeng/tenling',
+      author: {
+        '@type': 'Person',
+        name: 'Sihan Teng',
+        url: 'https://me.brighteng.org/',
+      },
+    })} />
+  </head>
+  <body>
+    <a class="skip" href="#main">Skip to content</a>
+    <div class="desk">
+      <div class="sheet-shadow">
+        <article class="sheet">
+          <span class="fold" aria-hidden="true"></span>
+          <header class="mast">
+            <a class="mark" href="/">
+              <img src="/favicon.svg" width="32" height="32" alt="" />
+              TenLing
+            </a>
+            <nav aria-label="Page">
+              <a href="/#install">Install</a>
+              <a href="https://github.com/SihanTeng/tenling">Source</a>
+              <a href="https://me.brighteng.org/" rel="me author">Sihan Teng</a>
+            </nav>
+          </header>
+          <slot />
+          <footer class="foot">
+            <p class="foot-line">
+              <a href="https://me.brighteng.org/">I build what I want.</a>
+            </p>
+            <div class="foot-meta">
+              <a href="https://me.brighteng.org/">me.brighteng.org</a>
+              <a href="https://me.brighteng.org/projects/tenling/">Project note</a>
+              <a href="https://github.com/SihanTeng/tenling">Source</a>
+              <span>© 2026 Sihan Teng</span>
+            </div>
+          </footer>
+        </article>
+      </div>
+    </div>
+  </body>
+</html>

@@ -1,0 +1,107 @@
+---
+import Base from '../layouts/Base.astro';
+
+const description =
+  'TenLing is a calm desktop app for writing, reading, and presenting Markdown. Your files stay plain .md.';
+---
+
+<Base title="TenLing — Markdown, quietly." description={description}>
+  <main id="main">
+    <header class="opening">
+      <h1>Markdown,<br />quietly.</h1>
+      <svg class="sig" viewBox="44 91 42 12" aria-hidden="true">
+        <path
+          d="M46 96 C55 99 62 93.5 71 95.5 C76 96.6 80 95.8 83 93.8"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.7"
+          stroke-linecap="round"></path>
+      </svg>
+      <p class="lead">
+        A desktop app for people who want to open a file and write. What you see is the document.
+        What you save is still Markdown.
+      </p>
+      <div class="actions">
+        <a class="btn btn--fill" href="https://github.com/SihanTeng/tenling/releases/latest">Download</a>
+        <a class="btn" href="#install">How to install</a>
+      </div>
+    </header>
+
+    <p class="statement">The file on disk stays plain .md.</p>
+
+    <section class="split" aria-labelledby="write-heading">
+      <div class="prose">
+        <h2 id="write-heading">Open a file and write.</h2>
+        <p>
+          Most Markdown tools ask you to pick a knowledge base, a split preview, or a paid editor
+          with one job. TenLing is the quiet one. Headings, lists, tasks, tables, code, images, and
+          links format where you type. A slash opens a block menu. <code>$…$</code> and
+          <code>$$…$$</code> set math with KaTeX, in the page and on the slides.
+        </p>
+        <p>
+          When you present, H1 and H2 become the deck. The deck is the document, so there is no
+          second file to keep in sync. Press ⌘⇧P, or Ctrl+Shift+P. Esc leaves. Arrow keys move.
+        </p>
+        <p>
+          Your files live in a folder you choose. There is no vault. A longer note lives
+          <a href="https://me.brighteng.org/projects/tenling/">on the shelf</a>.
+        </p>
+      </div>
+      <dl class="facts">
+        <div>
+          <dt>Write</dt>
+          <dd>Toolbar and the usual shortcuts. Light, dark, or follow the system.</dd>
+        </div>
+        <div>
+          <dt>Math</dt>
+          <dd>Inline and display formulas, typeset while you edit and when you present.</dd>
+        </div>
+        <div>
+          <dt>Present</dt>
+          <dd>Headings become slides. The document is the only copy.</dd>
+        </div>
+        <div>
+          <dt>Files</dt>
+          <dd>An outline for the open file, and the Markdown in the folder beside it.</dd>
+        </div>
+        <div>
+          <dt>Find</dt>
+          <dd>Search the open document with ⌘F or Ctrl+F.</dd>
+        </div>
+        <div>
+          <dt>Export</dt>
+          <dd>HTML, PDF, or Word. Updates arrive signed from GitHub Releases.</dd>
+        </div>
+      </dl>
+    </section>
+
+    <section class="install" id="install" aria-labelledby="install-heading">
+      <h2 id="install-heading">Install</h2>
+      <p>
+        macOS, Linux, and Windows. TenLing uses the system web view instead of shipping a browser.
+        The editor is TipTap. Slides are Remotion.
+      </p>
+      <div class="recipes">
+        <div>
+          <h3>macOS</h3>
+          <pre><code>brew tap SihanTeng/tenling
+brew install --cask tenling</code></pre>
+        </div>
+        <div>
+          <h3>macOS or Linux</h3>
+          <pre><code>curl -fsSL https://raw.githubusercontent.com/SihanTeng/tenling/main/install.sh | bash</code></pre>
+        </div>
+        <div>
+          <h3>Windows</h3>
+          <pre><code>irm https://raw.githubusercontent.com/SihanTeng/tenling/main/install.ps1 | iex</code></pre>
+        </div>
+      </div>
+      <p class="closer">
+        Manual packages — DMG, AppImage, deb, rpm, and MSI — are on the
+        <a href="https://github.com/SihanTeng/tenling/releases/latest">releases page</a>.
+        Homebrew, APT, DNF, the AUR, and Chocolatey are written up in the
+        <a href="https://me.brighteng.org/projects/tenling/">project note</a>.
+      </p>
+    </section>
+  </main>
+</Base>

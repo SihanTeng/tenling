@@ -1,0 +1,17 @@
+{
+  "name": "tenling-site",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview --host 127.0.0.1",
+    "pages:dev": "astro build && wrangler pages dev dist",
+    "pages:deploy": "astro build && wrangler pages deploy dist --project-name tenling --branch main"
+  },
+  "dependencies": {
+    "astro": "^7.3.5",
+    "wrangler": "^4.141.0"
+  }
+}

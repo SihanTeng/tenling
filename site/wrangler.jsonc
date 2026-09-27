@@ -1,0 +1,10 @@
+// Cloudflare Pages project for https://tenling.brighteng.org
+// Dashboard: root directory `site`, build `bun run build`, output `dist`,
+// production branch `main`, env BUN_VERSION=1.3.11.
+// Attach the custom domain on the Pages project (zone brighteng.org).
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "tenling",
+  "compatibility_date": "2026-09-27",
+  "pages_build_output_dir": "./dist"
+}
