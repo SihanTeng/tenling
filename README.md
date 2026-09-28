@@ -149,7 +149,7 @@ the download's SHA-256 before installing it.
 
 ### iPhone, iPad, and Mac App Store
 
-Free App Store listings are being prepared. They are not yet publicly available.
+Free iPhone, iPad, and Mac versions have been submitted to Apple and are waiting for review. They are not yet publicly available on the App Store.
 See [Apple distribution](docs/apple-release.md) for build instructions and the
 remaining submission requirements.
 
