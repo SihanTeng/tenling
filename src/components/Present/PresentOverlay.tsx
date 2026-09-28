@@ -27,6 +27,18 @@ export function PresentOverlay({ editor, onClose }: Props) {
   const durationInFrames = slideDeckDuration(slides.length);
   const [index, setIndex] = useState(0);
   const [player, setPlayer] = useState<PlayerRef | null>(null);
+  const [stage, setStage] = useState<HTMLDivElement | null>(null);
+  const [slideWidth, setSlideWidth] = useState(0);
+
+  useEffect(() => {
+    if (!stage) return;
+    const observer = new ResizeObserver(([entry]) => {
+      const { width, height } = entry.contentRect;
+      setSlideWidth(Math.min(width, (height * 16) / 9, 1024));
+    });
+    observer.observe(stage);
+    return () => observer.disconnect();
+  }, [stage]);
 
   const goTo = useCallback(
     (i: number) => {
@@ -56,13 +68,13 @@ export function PresentOverlay({ editor, onClose }: Props) {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex flex-col"
+      className="present-overlay fixed inset-0 z-50 flex flex-col"
       style={{ background: dark ? '#000' : '#111' }}
       role="dialog"
       aria-modal="true"
       aria-label="Presentation"
     >
-      <div className="flex h-10 items-center justify-between px-3 text-white/80">
+      <div className="present-controls flex h-10 shrink-0 items-center justify-between px-3 text-white/80">
         <span className="text-[12px] tabular-nums">
           {index + 1} / {slides.length}
         </span>
@@ -72,6 +84,8 @@ export function PresentOverlay({ editor, onClose }: Props) {
             className="inline-flex h-7 w-7 items-center justify-center rounded-md hover:bg-white/10"
             onClick={() => goTo(index - 1)}
             title="Previous"
+            aria-label="Previous slide"
+            disabled={index === 0}
           >
             <ChevronLeft size={16} />
           </button>
@@ -80,6 +94,8 @@ export function PresentOverlay({ editor, onClose }: Props) {
             className="inline-flex h-7 w-7 items-center justify-center rounded-md hover:bg-white/10"
             onClick={() => goTo(index + 1)}
             title="Next"
+            aria-label="Next slide"
+            disabled={index === slides.length - 1}
           >
             <ChevronRight size={16} />
           </button>
@@ -88,14 +104,18 @@ export function PresentOverlay({ editor, onClose }: Props) {
             className="ml-1 inline-flex h-7 w-7 items-center justify-center rounded-md hover:bg-white/10"
             onClick={onClose}
             title="Exit (Esc)"
+            aria-label="Exit presentation"
           >
             <X size={16} />
           </button>
         </div>
       </div>
 
-      <div className="flex min-h-0 flex-1 items-center justify-center p-4">
-        <div className="aspect-video w-full max-w-5xl overflow-hidden rounded-lg shadow-2xl">
+      <div ref={setStage} className="flex min-h-0 flex-1 items-center justify-center p-4">
+        <div
+          className="aspect-video shrink-0 overflow-hidden rounded-lg shadow-2xl"
+          style={{ width: slideWidth }}
+        >
           <Player
             ref={setPlayer}
             component={SlideDeck}
@@ -114,7 +134,9 @@ export function PresentOverlay({ editor, onClose }: Props) {
         </div>
       </div>
 
-      <div className="pb-3 text-center text-[11px] text-white/40">← → navigate · Esc exit</div>
+      <div className="shrink-0 pb-3 text-center text-[11px] text-white/40">
+        ← → navigate · Esc exit
+      </div>
     </div>
   );
 }

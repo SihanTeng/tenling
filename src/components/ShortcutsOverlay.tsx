@@ -60,12 +60,12 @@ export function ShortcutsOverlay({ onClose }: { onClose: () => void }) {
   return (
     // biome-ignore lint/a11y/noStaticElementInteractions lint/a11y/useKeyWithClickEvents: backdrop click dismisses; Escape is handled globally
     <div
-      className="fixed inset-0 z-[60] flex items-start justify-center bg-black/25 pt-[15vh] print:hidden"
+      className="shortcuts-backdrop fixed inset-0 z-[60] flex items-start justify-center bg-black/25 pt-[15vh] print:hidden"
       onClick={onClose}
     >
       {/* biome-ignore lint/a11y/noStaticElementInteractions lint/a11y/useKeyWithClickEvents: stop backdrop dismiss when clicking inside the panel */}
       <div
-        className="w-[380px] rounded-[var(--radius-lg)] border border-[var(--color-hairline)] p-4"
+        className="shortcuts-panel w-[380px] rounded-[var(--radius-lg)] border border-[var(--color-hairline)] p-4"
         style={{ background: 'var(--color-surface)', boxShadow: 'var(--shadow-popover)' }}
         onClick={(e) => e.stopPropagation()}
       >

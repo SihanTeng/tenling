@@ -16,7 +16,13 @@ export default defineConfig(async () => ({
     environment: 'jsdom',
     // Keep vitest out of vendored reference repos (ref/) — the default
     // exclude list is replaced, so node_modules/dist are repeated here
-    exclude: ['**/node_modules/**', '**/dist/**', '**/ref/**'],
+    exclude: [
+      '**/node_modules/**',
+      '**/dist/**',
+      '**/ref/**',
+      '**/artifacts/**',
+      '**/src-tauri/target/**',
+    ],
   },
 
   // Vite options for Tauri: desktop HMR must hit localhost explicitly.

@@ -1,9 +1,13 @@
 import { isTauri } from '@tauri-apps/api/core';
 
-export const isMac = navigator.userAgent.includes('Mac');
+export const isIOS =
+  /iPhone|iPad|iPod/.test(navigator.userAgent) ||
+  (navigator.userAgent.includes('Mac') && navigator.maxTouchPoints > 1);
+export const isMobile = isIOS || navigator.userAgent.includes('Android');
+export const isMac = !isMobile && navigator.userAgent.includes('Mac');
 
 /** Gates the Linux-only direct PDF export (WebKitGTK print-to-file). */
-export const isLinux = navigator.userAgent.includes('Linux');
+export const isLinux = !isMobile && navigator.userAgent.includes('Linux');
 
 /**
  * On Linux/Windows the Rust side removes native window decorations (see
@@ -12,4 +16,6 @@ export const isLinux = navigator.userAgent.includes('Linux');
  * native traffic lights and the native menu bar.
  */
 export const customChrome =
-  isTauri() && (navigator.userAgent.includes('Linux') || navigator.userAgent.includes('Windows'));
+  !isMobile &&
+  isTauri() &&
+  (navigator.userAgent.includes('Linux') || navigator.userAgent.includes('Windows'));

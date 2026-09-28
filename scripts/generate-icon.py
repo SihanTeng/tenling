@@ -1,13 +1,11 @@
 #!/usr/bin/env python3
 """Generate the TenLing app icon set from the brand mark.
 
-Primary path: paint the procedural master mark — a crisp white page with a
-folded corner carrying a markdown `#`, two text lines, and a coral
-signature stroke, over a deep ink-teal gradient — then rasterize it through a
-squircle mask into PNG / ICO / ICNS for Tauri, public/, and docs/.
+Primary path: rasterize assets/icon/master-source.png (the soft 3D mark)
+through a squircle mask into PNG / ICO / ICNS for Tauri, public/, and docs/.
 
-A raster image can still be used instead via --source (or
-assets/icon/master-source.jpg) for one-off experiments.
+With no master file, paint the flat fallback: a white page, markdown `#`,
+and a coral stroke on an ink-teal squircle. Pass --source to use other art.
 
 Usage:
   python3 scripts/generate-icon.py
@@ -30,7 +28,7 @@ OUT_DIR = ROOT / "src-tauri" / "icons"
 ASSETS_DIR = ROOT / "assets" / "icon"
 PUBLIC = ROOT / "public"
 DOCS_ASSETS = ROOT / "docs" / "assets"
-DEFAULT_MASTER = ASSETS_DIR / "master-source.jpg"
+DEFAULT_MASTER = ASSETS_DIR / "master-source.png"
 
 
 def squircle_mask(size: int, n: float = 4.6) -> Image.Image:
@@ -237,12 +235,13 @@ def paint_master(size: int) -> Image.Image:
     return img
 
 
-def apply_squircle(src: Image.Image) -> Image.Image:
+def apply_squircle(src: Image.Image, *, vignette: bool = True) -> Image.Image:
     size = src.size[0]
     out = Image.new("RGBA", (size, size), (0, 0, 0, 0))
     rgba = src.convert("RGBA")
-    # slight vignette for depth
-    rgba = Image.alpha_composite(rgba, soft_vignette(size))
+    # The painted mark needs an edge vignette. A rendered master already has its own light.
+    if vignette:
+        rgba = Image.alpha_composite(rgba, soft_vignette(size))
     out.paste(rgba, (0, 0), mask=squircle_mask(size))
     return out
 
@@ -336,11 +335,13 @@ def main() -> None:
     if source is not None and source.exists():
         print(f"Using master art: {source}")
         base = load_master(source, 2048)
+        rendered = True
     else:
         print("Painting the TenLing mark (page, #, coral stroke)")
         base = paint_master(2048)
+        rendered = False
 
-    hi = apply_squircle(base)
+    hi = apply_squircle(base, vignette=not rendered)
     master = hi.resize((1024, 1024), Image.Resampling.LANCZOS)
     master.save(ASSETS_DIR / "icon-1024.png")
 
@@ -380,7 +381,9 @@ def main() -> None:
     icos = [master.resize((s, s), Image.Resampling.LANCZOS) for s in ico_sizes]
     icos[0].save(OUT_DIR / "icon.ico", format="ICO", append_images=icos[1:])
     write_icns(master, OUT_DIR / "icon.icns")
-    write_svg()
+    # A rendered master is the icon. The flat SVG is only the procedural fallback.
+    if not rendered:
+        write_svg()
 
     # Keep a copy of the processed master for reference
     master.save(ASSETS_DIR / "icon-master.png")

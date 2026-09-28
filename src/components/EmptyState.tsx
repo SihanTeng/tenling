@@ -1,5 +1,6 @@
 import { FilePlus, FileText, FolderOpen } from 'lucide-react';
 import { lazy, Suspense } from 'react';
+import { isMobile } from '../lib/platform';
 import { useDocumentStore } from '../stores/documentStore';
 
 const WelcomePlayer = lazy(() =>
@@ -18,10 +19,10 @@ export function EmptyState({ onNew, onOpen, onOpenFolder }: Props) {
     typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   return (
-    <div className="flex h-full flex-col items-center justify-center gap-6 px-8">
+    <div className="empty-state flex h-full flex-col items-center justify-center gap-6 px-8">
       <div className="h-[160px] w-[280px] overflow-hidden rounded-[var(--radius-lg)] border border-[var(--color-hairline)] bg-[var(--color-surface)] shadow-[var(--shadow-popover)]">
         {reduced ? (
-          <div className="flex h-full flex-col items-center justify-center gap-2">
+          <div className="empty-state flex h-full flex-col items-center justify-center gap-2">
             <img
               src="/icon.png"
               alt=""
@@ -53,7 +54,7 @@ export function EmptyState({ onNew, onOpen, onOpenFolder }: Props) {
         </p>
       </div>
 
-      <div className="flex items-center gap-2">
+      <div className="welcome-actions flex items-center gap-2">
         <button
           type="button"
           onClick={onNew}
@@ -71,14 +72,16 @@ export function EmptyState({ onNew, onOpen, onOpenFolder }: Props) {
           <FileText size={14} strokeWidth={1.75} />
           Open File…
         </button>
-        <button
-          type="button"
-          onClick={onOpenFolder}
-          className="inline-flex h-8 items-center gap-1.5 rounded-[var(--radius-md)] border border-[var(--color-hairline-strong)] bg-[var(--color-surface)] px-3.5 text-[13px] font-medium text-[var(--color-ink)] hover:bg-[var(--color-hover)]"
-        >
-          <FolderOpen size={14} strokeWidth={1.75} />
-          Open Folder…
-        </button>
+        {!isMobile ? (
+          <button
+            type="button"
+            onClick={onOpenFolder}
+            className="inline-flex h-8 items-center gap-1.5 rounded-[var(--radius-md)] border border-[var(--color-hairline-strong)] bg-[var(--color-surface)] px-3.5 text-[13px] font-medium text-[var(--color-ink)] hover:bg-[var(--color-hover)]"
+          >
+            <FolderOpen size={14} strokeWidth={1.75} />
+            Open Folder…
+          </button>
+        ) : null}
       </div>
     </div>
   );

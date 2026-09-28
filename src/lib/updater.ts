@@ -1,3 +1,4 @@
+import { invoke, isTauri } from '@tauri-apps/api/core';
 import { ask, message } from '@tauri-apps/plugin-dialog';
 import { relaunch } from '@tauri-apps/plugin-process';
 import { check } from '@tauri-apps/plugin-updater';
@@ -9,6 +10,7 @@ import { check } from '@tauri-apps/plugin-updater';
  * is up to date or the check fails; manual checks always report the outcome.
  */
 export async function checkForUpdates(manual = false): Promise<void> {
+  if (!isTauri() || !(await invoke<boolean>('supports_updater').catch(() => false))) return;
   try {
     const update = await check();
     if (!update) {

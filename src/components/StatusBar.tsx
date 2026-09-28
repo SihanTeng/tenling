@@ -20,12 +20,14 @@ export function StatusBar() {
 
   return (
     <footer
-      className="flex h-[var(--status-height)] shrink-0 items-center justify-between border-t border-[var(--color-hairline)] px-3 text-[11px] text-[var(--color-ink-tertiary)] print:hidden"
+      className="app-status flex h-[var(--status-height)] shrink-0 items-center justify-between border-t border-[var(--color-hairline)] px-3 text-[11px] text-[var(--color-ink-tertiary)] print:hidden"
       style={{ background: 'var(--color-toolbar)' }}
     >
       <div className="flex min-w-0 items-center gap-2 truncate">
         {error ? (
-          <span className="truncate text-[var(--color-danger)]">{error}</span>
+          <span role="alert" title={error} className="status-error text-[var(--color-danger)]">
+            {error}
+          </span>
         ) : path ? (
           <button
             type="button"
@@ -38,7 +40,7 @@ export function StatusBar() {
             {path}
           </button>
         ) : (
-          <span className="truncate">Unsaved document</span>
+          <span className="truncate">{hasDocument ? 'Unsaved document' : 'Ready'}</span>
         )}
         {error ? null : isSaving ? (
           <span className="shrink-0 text-[var(--color-ink-secondary)]">Saving…</span>
@@ -50,9 +52,9 @@ export function StatusBar() {
           </span>
         ) : null}
       </div>
-      <div className="flex shrink-0 items-center gap-3 tabular-nums">
+      <div className="status-counts flex shrink-0 items-center gap-3 tabular-nums">
         {hasDocument ? <span>Ln {cursorLine}</span> : null}
-        <span>
+        <span className="status-words">
           {wordCount} word{wordCount === 1 ? '' : 's'}
         </span>
         <span>

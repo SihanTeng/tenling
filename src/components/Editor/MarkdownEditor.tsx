@@ -135,7 +135,7 @@ export function MarkdownEditor({ initialHtml, onReady, onRename }: Props) {
 
   return (
     <div className="mac-scroll h-full overflow-y-auto print:h-auto print:overflow-y-visible">
-      <div className="mx-auto max-w-[46rem] px-10 py-8">
+      <div className="editor-page mx-auto max-w-[46rem] px-10 py-8">
         <DocumentTitle onRename={(name) => onRename?.(name)} />
         <EditorContent editor={editor} />
       </div>

@@ -89,7 +89,7 @@ export function FindReplaceOverlay({ editor, onClose }: Props) {
   const hasMatches = total > 0;
 
   return (
-    <div className="absolute right-4 top-2 z-30 flex w-[300px] flex-col gap-1 rounded-[var(--radius-md)] border border-[var(--color-hairline)] bg-[var(--color-surface)] p-1.5 shadow-[var(--shadow-popover)]">
+    <div className="find-panel absolute right-4 top-2 z-30 flex w-[300px] flex-col gap-1 rounded-[var(--radius-md)] border border-[var(--color-hairline)] bg-[var(--color-surface)] p-1.5 shadow-[var(--shadow-popover)]">
       <div className="flex items-center gap-1">
         <input
           ref={findInputRef}

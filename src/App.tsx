@@ -249,7 +249,7 @@ export default function App() {
 
   return (
     <div
-      className={`flex h-full w-full overflow-hidden bg-[var(--color-bg)] print:block print:h-auto print:overflow-visible ${customChrome ? 'pt-8 print:pt-0' : ''}`}
+      className={`app-shell flex h-full w-full overflow-hidden bg-[var(--color-bg)] print:block print:h-auto print:overflow-visible ${customChrome ? 'pt-8 print:pt-0' : ''}`}
     >
       <MenuBar editor={editor} onCommand={handleMenuCommand} />
       <Sidebar

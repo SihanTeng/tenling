@@ -20,7 +20,7 @@
 #       aur         → DIST_AUR_SSH_KEY
 #       chocolatey  → DIST_CHOCOLATEY_API_KEY
 #       copr        → DIST_COPR_CONFIG + var DIST_COPR_PROJECT
-#   - Code signing (Apple/Windows) optional — see comments on the build step.
+#   - macOS releases require Apple signing/notarization secrets; Windows signing is optional.
 
 name: Release
 
@@ -72,6 +72,36 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
 
+      - name: Refuse to overwrite a published release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION="$(python3 -c 'import json; print(json.load(open("package.json"))["version"])')"
+          TAG="v$VERSION"
+          if [[ "$GITHUB_REF_TYPE" == tag ]]; then TAG="$GITHUB_REF_NAME"; fi
+          if gh release view "$TAG" --json isDraft > existing-release.json 2>/dev/null; then
+            python3 -c 'import json; assert json.load(open("existing-release.json"))["isDraft"], "Use a new version; published assets are immutable"'
+          fi
+
+      - name: Require macOS distribution signing
+        if: matrix.platform_key == 'macos'
+        shell: bash
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          for key in APPLE_CERTIFICATE APPLE_CERTIFICATE_PASSWORD APPLE_SIGNING_IDENTITY APPLE_ID APPLE_PASSWORD APPLE_TEAM_ID; do
+            if [[ -z "${!key}" ]]; then
+              echo "::error::Missing $key; refusing to publish an unsigned Mac installer."
+              exit 1
+            fi
+          done
+
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
 
@@ -108,7 +138,7 @@ jobs:
       - name: Install frontend dependencies
         run: bun install --frozen-lockfile
 
-      # Optional macOS signing / notarization — set repo secrets when ready:
+      # Required macOS signing / notarization:
       #   APPLE_CERTIFICATE, APPLE_CERTIFICATE_PASSWORD, APPLE_SIGNING_IDENTITY,
       #   APPLE_ID, APPLE_PASSWORD, APPLE_TEAM_ID
       # https://v2.tauri.app/distribute/sign/macos/
@@ -123,12 +153,12 @@ jobs:
           # Signs the updater artifacts (.sig + latest.json) for OTA updates.
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-          # APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
-          # APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
-          # APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
-          # APPLE_ID: ${{ secrets.APPLE_ID }}
-          # APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
-          # APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         with:
           projectPath: .
           tauriScript: bun run tauri
@@ -155,13 +185,21 @@ jobs:
             apply to the AppImage; deb/RPM update through the package manager.
 
             ### Install notes
-            - **macOS**: open the DMG and drag **TenLing** to Applications, or `brew install --cask sihanteng/tenling/tenling`. Unsigned builds may need System Settings → Privacy & Security → Open Anyway.
+            - **macOS**: open the DMG and drag **TenLing** to Applications, or `brew install --cask sihanteng/tenling/tenling`. The Mac application is signed and notarized by Apple.
             - **Linux (AppImage)**: `chmod +x tenling-*-linux-x64.AppImage && ./tenling-*-linux-x64.AppImage`
             - **Linux (deb)**: `sudo apt install ./tenling-*-linux-x64.deb`
             - **Linux (RPM)**: `sudo dnf install ./tenling-*-linux-x64.rpm`
             - **Windows**: run the MSI installer (WebView2 bootstrapper downloads if needed).
-          releaseDraft: false
+          releaseDraft: true
           prerelease: false
+
+      - name: Verify notarized Mac application
+        if: matrix.platform_key == 'macos'
+        run: |
+          APP="src-tauri/target/universal-apple-darwin/release/bundle/macos/TenLing.app"
+          codesign --verify --deep --strict --verbose=2 "$APP"
+          xcrun stapler validate "$APP"
+          spctl --assess --type execute --verbose=2 "$APP"
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v7
@@ -217,6 +255,11 @@ jobs:
         run: |
           chmod +x scripts/normalize-release-assets.sh
           ./scripts/normalize-release-assets.sh publish "${{ steps.meta.outputs.tag }}" "${{ github.repository }}"
+
+      - name: Publish verified release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release edit "${{ steps.meta.outputs.tag }}" --draft=false --latest
 
   homebrew:
     name: Publish Homebrew cask

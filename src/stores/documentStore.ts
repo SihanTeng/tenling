@@ -98,7 +98,9 @@ export const useDocumentStore = create<DocumentState>((set) => ({
   recent: [],
   theme: 'system',
   presentOpen: false,
-  sidebarOpen: true,
+  sidebarOpen: !(
+    typeof window.matchMedia === 'function' && window.matchMedia('(max-width: 1000px)').matches
+  ),
   sidebarMode: 'outline',
   workspace: null,
   autoSave:

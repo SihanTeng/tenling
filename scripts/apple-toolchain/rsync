@@ -1,0 +1,4 @@
+#!/bin/sh
+# Xcode invokes Apple's rsync, whose helper must be the matching binary.
+# A Homebrew rsync earlier in PATH rejects Apple's extended-attributes flag.
+exec /usr/bin/rsync "$@"

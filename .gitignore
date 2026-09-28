@@ -25,3 +25,9 @@ ref/
 *.njsproj
 *.sln
 *.sw?
+
+# Local release products and Apple signing material
+artifacts/
+*.mobileprovision
+*.provisionprofile
+*.p12

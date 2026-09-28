@@ -1,6 +1,9 @@
 import type { Editor } from '@tiptap/react';
 import { Clock, Folder, ListTree, X } from 'lucide-react';
+import { useEffect, useRef } from 'react';
+import { useCompactLayout } from '../hooks/useCompactLayout';
 import { scrollToPos } from '../lib/outline';
+import { isMobile } from '../lib/platform';
 import { type OutlineItem, type RecentFile, useDocumentStore } from '../stores/documentStore';
 import { FilesPane } from './FilesPane';
 
@@ -17,38 +20,109 @@ export function Sidebar({ editor, onOpenRecent, onHideRecent }: Props) {
   const mode = useDocumentStore((s) => s.sidebarMode);
   const setMode = useDocumentStore((s) => s.setSidebarMode);
 
+  const compact = useCompactLayout();
+  const setOpen = useDocumentStore((s) => s.setSidebarOpen);
+  const panelRef = useRef<HTMLElement>(null);
+  useEffect(() => {
+    if (compact) setOpen(false);
+  }, [compact, setOpen]);
+  useEffect(() => {
+    if (!compact || !open) return;
+    const previous = document.activeElement as HTMLElement | null;
+    panelRef.current?.querySelector<HTMLButtonElement>('button')?.focus();
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setOpen(false);
+      if (event.key === 'Tab') {
+        const buttons = Array.from(
+          panelRef.current?.querySelectorAll<HTMLElement>(
+            'button:not(:disabled), input, [tabindex="0"]',
+          ) ?? [],
+        );
+        const first = buttons[0];
+        const last = buttons[buttons.length - 1];
+        if (event.shiftKey && document.activeElement === first) {
+          event.preventDefault();
+          last?.focus();
+        } else if (!event.shiftKey && document.activeElement === last) {
+          event.preventDefault();
+          first?.focus();
+        }
+      }
+    };
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('keydown', onKey);
+      previous?.focus();
+    };
+  }, [compact, open, setOpen]);
   if (!open) return null;
+  const openRecent = (path: string) => {
+    onOpenRecent(path);
+    if (compact) setOpen(false);
+  };
 
   return (
-    <aside
-      className="flex h-full w-[var(--sidebar-width)] shrink-0 flex-col border-r border-[var(--color-hairline)] backdrop-blur-xl print:hidden"
-      style={{ background: 'var(--color-sidebar)' }}
-    >
-      <div className="flex gap-1 px-3 pt-3">
-        <ModeButton
-          active={mode === 'outline'}
-          onClick={() => setMode('outline')}
-          title="Document outline"
-        >
-          <ListTree size={14} strokeWidth={1.75} />
-        </ModeButton>
-        <ModeButton active={mode === 'files'} onClick={() => setMode('files')} title="Browse files">
-          <Folder size={14} strokeWidth={1.75} />
-        </ModeButton>
-      </div>
-
-      {mode === 'files' ? (
-        <FilesPane onOpenFile={onOpenRecent} />
-      ) : (
-        <OutlinePane
-          editor={editor}
-          outline={outline}
-          recent={recent}
-          onOpenRecent={onOpenRecent}
-          onHideRecent={onHideRecent}
+    <>
+      {compact ? (
+        <button
+          type="button"
+          className="sidebar-backdrop"
+          aria-label="Close sidebar"
+          tabIndex={-1}
+          onClick={() => setOpen(false)}
         />
-      )}
-    </aside>
+      ) : null}
+      {/* biome-ignore lint/a11y/useAriaPropsSupportedByRole: compact layout gives the aside a dialog role */}
+      <aside
+        ref={panelRef}
+        role={compact ? 'dialog' : undefined}
+        aria-modal={compact ? true : undefined}
+        aria-label="Document sidebar"
+        className="app-sidebar flex h-full w-[var(--sidebar-width)] shrink-0 flex-col border-r border-[var(--color-hairline)] backdrop-blur-xl print:hidden"
+        style={{ background: 'var(--color-sidebar)' }}
+      >
+        <div className="flex gap-1 px-3 pt-3">
+          <ModeButton
+            active={mode === 'outline'}
+            onClick={() => setMode('outline')}
+            title="Document outline"
+          >
+            <ListTree size={14} strokeWidth={1.75} />
+          </ModeButton>
+          {!isMobile ? (
+            <ModeButton
+              active={mode === 'files'}
+              onClick={() => setMode('files')}
+              title="Browse files"
+            >
+              <Folder size={14} strokeWidth={1.75} />
+            </ModeButton>
+          ) : null}
+          {compact ? (
+            <button
+              type="button"
+              className="sidebar-close ml-auto"
+              aria-label="Close sidebar"
+              onClick={() => setOpen(false)}
+            >
+              <X size={18} />
+            </button>
+          ) : null}
+        </div>
+
+        {mode === 'files' && !isMobile ? (
+          <FilesPane onOpenFile={openRecent} />
+        ) : (
+          <OutlinePane
+            editor={editor}
+            outline={outline}
+            recent={recent}
+            onOpenRecent={openRecent}
+            onHideRecent={onHideRecent}
+          />
+        )}
+      </aside>
+    </>
   );
 }
 
@@ -68,6 +142,7 @@ function ModeButton({
       type="button"
       onClick={onClick}
       title={title}
+      aria-label={title}
       className={`inline-flex h-7 w-7 items-center justify-center rounded-[var(--radius-sm)] ${
         active
           ? 'bg-[var(--color-hover)] text-[var(--color-ink)]'
@@ -103,7 +178,11 @@ function OutlinePane({
               <button
                 key={item.id}
                 type="button"
-                onClick={() => editor && scrollToPos(editor, item.pos)}
+                onClick={() => {
+                  if (editor) scrollToPos(editor, item.pos);
+                  if (window.matchMedia('(max-width: 1000px)').matches)
+                    useDocumentStore.getState().setSidebarOpen(false);
+                }}
                 className="block w-full truncate rounded-[var(--radius-sm)] px-2 py-1 text-left text-[12.5px] text-[var(--color-ink-secondary)] hover:bg-[var(--color-hover)] hover:text-[var(--color-ink)]"
                 style={{ paddingLeft: 8 + (item.level - 1) * 12 }}
               >

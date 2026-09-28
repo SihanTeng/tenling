@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+# swift-rs 1.0.x passes an iOS target through compiler flags. Swift 6.4's
+# default Swift Build backend instead resolves macOS framework dependencies.
+# Use SwiftPM's supported native backend for those cross-compiled packages.
+set -euo pipefail
+SWIFT_BIN="$(/usr/bin/xcrun --find swift)"
+if [[ "${1:-}" == build ]]; then
+  shift
+  exec "$SWIFT_BIN" build --build-system native "$@"
+fi
+exec "$SWIFT_BIN" "$@"

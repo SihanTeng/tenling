@@ -1,0 +1,24 @@
+{
+  "build": {
+    "features": [
+      "app-store"
+    ]
+  },
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "TenLing"
+      }
+    ]
+  },
+  "bundle": {
+    "createUpdaterArtifacts": false,
+    "iOS": {
+      "developmentTeam": "URMJKK7N6J",
+      "minimumSystemVersion": "15.0",
+      "infoPlist": "ios/Info.plist",
+      "bundleVersion": "4"
+    }
+  }
+}

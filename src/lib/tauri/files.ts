@@ -1,6 +1,11 @@
 import { invoke } from '@tauri-apps/api/core';
 import { open, save } from '@tauri-apps/plugin-dialog';
 import type { RecentFile } from '../../stores/documentStore';
+import { isMobile } from '../platform';
+
+async function retainPath(path: string | null): Promise<string | null> {
+  return path ? invoke<string>('retain_document_access', { path }) : null;
+}
 
 const MD_FILTERS = [
   {
@@ -19,11 +24,13 @@ export async function writeTextFile(
   opts?: { createNew?: boolean },
 ): Promise<void> {
   await invoke('write_text_file', { path, contents, createNew: opts?.createNew ?? false });
+  await retainPath(path);
 }
 
 /** Write base64-encoded bytes — binary exports like DOCX. */
 export async function writeBinaryFile(path: string, dataBase64: string): Promise<void> {
   await invoke('write_binary_file', { path, dataBase64 });
+  await retainPath(path);
 }
 
 export async function listRecent(): Promise<RecentFile[]> {
@@ -139,20 +146,22 @@ export async function pickOpenPath(): Promise<string | null> {
     multiple: false,
     directory: false,
     filters: MD_FILTERS,
+    fileAccessMode: 'scoped',
   });
   if (selected === null) return null;
-  if (Array.isArray(selected)) return selected[0] ?? null;
-  return selected;
+  if (Array.isArray(selected)) return retainPath(selected[0] ?? null);
+  return retainPath(selected);
 }
 
 export async function pickDirectory(): Promise<string | null> {
+  if (isMobile) return null;
   const selected = await open({
     multiple: false,
     directory: true,
   });
   if (selected === null) return null;
-  if (Array.isArray(selected)) return selected[0] ?? null;
-  return selected;
+  if (Array.isArray(selected)) return retainPath(selected[0] ?? null);
+  return retainPath(selected);
 }
 
 const IMAGE_FILTERS = [
@@ -169,35 +178,37 @@ export async function pickImagePath(): Promise<string | null> {
     filters: IMAGE_FILTERS,
   });
   if (selected === null) return null;
-  if (Array.isArray(selected)) return selected[0] ?? null;
-  return selected;
+  if (Array.isArray(selected)) return retainPath(selected[0] ?? null);
+  return retainPath(selected);
 }
 
 export async function pickSavePath(defaultPath?: string): Promise<string | null> {
   const path = await save({
     filters: MD_FILTERS,
-    defaultPath: defaultPath ?? 'Untitled.md',
+    defaultPath: isMobile
+      ? (defaultPath?.split(/[/\\]/).pop() ?? 'Untitled.md')
+      : (defaultPath ?? 'Untitled.md'),
   });
-  return path;
+  return retainPath(path);
 }
 
 const HTML_FILTERS = [{ name: 'HTML', extensions: ['html'] }];
 
 /** Save-dialog for HTML export (`.html` extension, own filter). */
 export async function pickExportHtmlPath(defaultPath: string): Promise<string | null> {
-  return save({ filters: HTML_FILTERS, defaultPath });
+  return retainPath(await save({ filters: HTML_FILTERS, defaultPath }));
 }
 
 const DOCX_FILTERS = [{ name: 'Word', extensions: ['docx'] }];
 
 /** Save-dialog for Word export (`.docx` extension, own filter). */
 export async function pickExportDocxPath(defaultPath: string): Promise<string | null> {
-  return save({ filters: DOCX_FILTERS, defaultPath });
+  return retainPath(await save({ filters: DOCX_FILTERS, defaultPath }));
 }
 
 const PDF_FILTERS = [{ name: 'PDF', extensions: ['pdf'] }];
 
 /** Save-dialog for PDF export (`.pdf` extension, own filter). */
 export async function pickExportPdfPath(defaultPath: string): Promise<string | null> {
-  return save({ filters: PDF_FILTERS, defaultPath });
+  return retainPath(await save({ filters: PDF_FILTERS, defaultPath }));
 }

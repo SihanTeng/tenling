@@ -1,11 +1,14 @@
+#[cfg(any(target_os = "ios", all(target_os = "macos", feature = "app-store")))]
+mod apple_access;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::io::Write as _;
 use std::path::{Path, PathBuf};
-use tauri::{
-    menu::{Menu, MenuItem, PredefinedMenuItem, Submenu},
-    Emitter, Manager,
-};
+#[cfg(target_os = "macos")]
+use tauri::menu::{Menu, MenuItem, PredefinedMenuItem, Submenu};
+#[cfg(desktop)]
+use tauri::Emitter;
+use tauri::Manager;
 
 const RECENT_MAX: usize = 12;
 const RECENT_FILE: &str = "recent.json";
@@ -68,7 +71,15 @@ fn write_text_file(path: String, contents: String, create_new: Option<bool>) -> 
     }
     // Write via temp + rename when possible for safer saves
     let tmp = format!("{path}.tmp");
-    fs::write(&tmp, contents.as_bytes()).map_err(|e| format!("Failed to write file: {e}"))?;
+    if let Err(error) = fs::write(&tmp, contents.as_bytes()) {
+        // Apple's document picker can grant write access to one file without
+        // granting permission to create a sibling temporary file.
+        if error.kind() == std::io::ErrorKind::PermissionDenied {
+            return fs::write(&path, contents.as_bytes())
+                .map_err(|e| format!("Failed to save file: {e}"));
+        }
+        return Err(format!("Failed to write file: {error}"));
+    }
     match fs::rename(&tmp, &path) {
         Ok(()) => Ok(()),
         Err(_) => {
@@ -171,7 +182,15 @@ fn copy_file(path: String) -> Result<String, String> {
 /// Move a file or directory to the OS trash.
 #[tauri::command]
 fn delete_path(path: String) -> Result<(), String> {
-    trash::delete(&path).map_err(|e| format!("Failed to move to trash: {e}"))
+    #[cfg(desktop)]
+    {
+        trash::delete(&path).map_err(|e| format!("Failed to move to trash: {e}"))
+    }
+    #[cfg(mobile)]
+    {
+        let _ = path;
+        Err("Use the Files app to move documents to Recently Deleted.".into())
+    }
 }
 
 /// Pasted/uploaded images live in an `assets/` folder next to the document;
@@ -376,10 +395,18 @@ fn file_mtime(path: String) -> Result<u64, String> {
 /// PDF" / "Microsoft Print to PDF"). Linux exports directly, see export_pdf.
 #[tauri::command]
 fn print_window(app: tauri::AppHandle) -> Result<(), String> {
-    let win = app
-        .get_webview_window("main")
-        .ok_or_else(|| "main window not found".to_string())?;
-    win.print().map_err(|e| e.to_string())
+    #[cfg(desktop)]
+    {
+        let win = app
+            .get_webview_window("main")
+            .ok_or_else(|| "main window not found".to_string())?;
+        win.print().map_err(|e| e.to_string())
+    }
+    #[cfg(mobile)]
+    {
+        let _ = app;
+        Err("Export as HTML or Word from the document menu on mobile.".into())
+    }
 }
 
 // GtkPrinter is unbound in gtk-sys 0.18, so the four symbols the PDF export
@@ -495,6 +522,7 @@ fn force_quit(app: tauri::AppHandle) {
     app.exit(0);
 }
 
+#[cfg(target_os = "macos")]
 fn build_menu(app: &tauri::AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
     let new = MenuItem::with_id(app, "file_new", "New", true, Some("CmdOrCtrl+N"))?;
     let open = MenuItem::with_id(app, "file_open", "Open…", true, Some("CmdOrCtrl+O"))?;
@@ -514,6 +542,7 @@ fn build_menu(app: &tauri::AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
     let export_docx =
         MenuItem::with_id(app, "file_export_docx", "Export Word…", true, None::<&str>)?;
     let export_pdf = MenuItem::with_id(app, "file_export_pdf", "Export PDF…", true, None::<&str>)?;
+    #[cfg(not(feature = "app-store"))]
     let check_updates = MenuItem::with_id(
         app,
         "app_check_updates",
@@ -538,6 +567,7 @@ fn build_menu(app: &tauri::AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
             &export_docx,
             &export_pdf,
             &sep3,
+            #[cfg(not(feature = "app-store"))]
             &check_updates,
             &quit,
         ],
@@ -581,12 +611,19 @@ pub fn run() {
     #[cfg(target_os = "linux")]
     std::env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
 
-    tauri::Builder::default()
+    let builder = tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
-        .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_dialog::init());
+    #[cfg(all(desktop, not(feature = "app-store")))]
+    let builder = builder
         .plugin(tauri_plugin_updater::Builder::new().build())
-        .plugin(tauri_plugin_process::init())
+        .plugin(tauri_plugin_process::init());
+    #[cfg(any(target_os = "ios", all(target_os = "macos", feature = "app-store")))]
+    let builder = builder.manage(apple_access::DocumentAccess::default());
+    builder
         .invoke_handler(tauri::generate_handler![
+            supports_updater,
+            retain_document_access,
             read_text_file,
             write_text_file,
             write_binary_file,
@@ -611,10 +648,15 @@ pub fn run() {
             force_quit
         ])
         .setup(|app| {
+            #[cfg(any(target_os = "ios", all(target_os = "macos", feature = "app-store")))]
+            if let Err(error) = apple_access::restore(app.handle()) {
+                eprintln!("Could not restore document bookmarks: {error}");
+            }
             // The native menu bar is macOS-only: on Linux/Windows the
             // frontend draws its own in-window menu (MenuBar.tsx), since
             // decorations are removed there.
-            if cfg!(target_os = "macos") {
+            #[cfg(target_os = "macos")]
+            {
                 let menu = build_menu(app.handle())?;
                 app.set_menu(menu)?;
 
@@ -628,6 +670,7 @@ pub fn run() {
             // Unsaved-changes guard: never let the OS close the window
             // directly — ask the frontend, which destroys the window (or
             // quits) once the user confirms.
+            #[cfg(desktop)]
             if let Some(window) = app.get_webview_window("main") {
                 // Custom chrome: the frontend renders the menu bar and the
                 // window controls (min/max/close) itself.
@@ -647,15 +690,38 @@ pub fn run() {
         })
         .build(tauri::generate_context!())
         .expect("error while building tauri application")
-        .run(|handle, event| {
+        .run(|_handle, _event| {
             // Same guard for Cmd+Q / Quit: hold the exit, let the frontend
             // confirm, then it calls force_quit. When the window is already
             // gone (macOS keeps the app running) just exit normally.
-            if let tauri::RunEvent::ExitRequested { api, .. } = event {
-                if handle.get_webview_window("main").is_some() {
+            #[cfg(desktop)]
+            if let tauri::RunEvent::ExitRequested { api, .. } = _event {
+                if _handle.get_webview_window("main").is_some() {
                     api.prevent_exit();
-                    let _ = handle.emit("close-requested", "quit");
+                    let _ = _handle.emit("close-requested", "quit");
                 }
             }
         });
+}
+
+#[tauri::command]
+fn supports_updater() -> bool {
+    cfg!(all(desktop, not(feature = "app-store")))
+}
+
+#[tauri::command]
+fn retain_document_access(_app: tauri::AppHandle, path: String) -> Result<String, String> {
+    let path = if path.starts_with("file:") {
+        tauri::Url::parse(&path)
+            .map_err(|e| e.to_string())?
+            .to_file_path()
+            .map_err(|_| "Invalid local file URL")?
+            .to_string_lossy()
+            .into_owned()
+    } else {
+        path
+    };
+    #[cfg(any(target_os = "ios", all(target_os = "macos", feature = "app-store")))]
+    apple_access::remember(&_app, &path)?;
+    Ok(path)
 }

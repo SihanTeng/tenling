@@ -3930,10 +3930,12 @@ dependencies = [
 
 [[package]]
 name = "tenling"
-version = "0.3.2"
+version = "0.3.3"
 dependencies = [
  "base64 0.22.1",
  "gtk",
+ "objc2",
+ "objc2-foundation",
  "serde",
  "serde_json",
  "tauri",

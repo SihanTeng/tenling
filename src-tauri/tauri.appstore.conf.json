@@ -1,0 +1,20 @@
+{
+  "build": {
+    "features": [
+      "app-store"
+    ]
+  },
+  "bundle": {
+    "targets": [
+      "app"
+    ],
+    "createUpdaterArtifacts": false,
+    "macOS": {
+      "entitlements": "macos/AppStore.entitlements",
+      "hardenedRuntime": false
+    },
+    "resources": {
+      "PrivacyInfo.xcprivacy": "PrivacyInfo.xcprivacy"
+    }
+  }
+}

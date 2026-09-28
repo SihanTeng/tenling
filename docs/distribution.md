@@ -1,5 +1,7 @@
 # Distribution channels for TenLing
 
+For Apple signing, notarization, iOS/Mac App Store builds, and current readiness, see [Apple distribution](apple-release.md).
+
 Package managers and where each one lives. Prefer the **no-account** paths
 first; account-backed channels need secrets listed in the **canonical registry**:
 

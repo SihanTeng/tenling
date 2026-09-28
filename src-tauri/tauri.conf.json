@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "TenLing",
-  "version": "0.3.2",
+  "version": "0.3.3",
   "identifier": "com.tenling.app",
   "build": {
     "beforeDevCommand": "bun run dev:web",
@@ -44,9 +44,9 @@
     ],
     "createUpdaterArtifacts": true,
     "category": "Productivity",
-    "shortDescription": "TenLing — Markdown viewer and editor",
+    "shortDescription": "TenLing \u2014 Markdown viewer and editor",
     "longDescription": "TenLing is a calm, cross-platform Markdown viewer and editor with WYSIWYG editing and present mode.",
-    "copyright": "Copyright © TenLing contributors",
+    "copyright": "Copyright \u00a9 TenLing contributors",
     "publisher": "Brighteng",
     "icon": [
       "icons/32x32.png",

@@ -140,18 +140,18 @@ brew tap SihanTeng/tenling
 brew install --cask tenling
 ```
 
-If the tap is not yet mirrored, use this repo directly:
-
-```bash
-brew tap SihanTeng/tenling https://github.com/SihanTeng/tenling
-brew install --cask tenling
-```
-
 **Or** download `tenling-*-macos-universal.dmg`, open it, and drag **TenLing** into
 **Applications**. Works on Apple silicon and Intel Macs (macOS 10.15+).
 
-If macOS blocks an unsigned build: **System Settings → Privacy & Security →
-Open Anyway**.
+The Apple release pipeline requires a Developer ID signature, Apple notarization,
+and Gatekeeper acceptance before publishing a Mac installer. Homebrew verifies
+the download's SHA-256 before installing it.
+
+### iPhone, iPad, and Mac App Store
+
+Free App Store listings are being prepared. They are not yet publicly available.
+See [Apple distribution](docs/apple-release.md) for build instructions and the
+remaining submission requirements.
 
 ### Linux
 

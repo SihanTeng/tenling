@@ -39,6 +39,19 @@ Rules:
 | `TAURI_SIGNING_PRIVATE_KEY` | Secret | `build` | Contents of `~/.tauri/tenling.key` (`bun run tauri -- signer generate`) |
 | `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` | Secret | `build` | Key password, or empty if none |
 
+The macOS release job fails before publishing if the following signing secrets are missing. Installers stay in a draft release until all builds and Mac signature, staple, and Gatekeeper checks pass.
+
+| Name | Kind | Purpose |
+| --- | --- | --- |
+| `APPLE_CERTIFICATE` | Secret | Base64 Developer ID Application certificate and private key (.p12) |
+| `APPLE_CERTIFICATE_PASSWORD` | Secret | Password protecting the .p12 |
+| `APPLE_SIGNING_IDENTITY` | Secret | Developer ID Application identity |
+| `APPLE_ID` | Secret | Apple account used for notarization |
+| `APPLE_PASSWORD` | Secret | App-specific password for notarization |
+| `APPLE_TEAM_ID` | Secret | Apple Developer team ID |
+
+Local releases may use an existing Keychain notarization profile instead; never commit signing material.
+
 ### Distribution
 
 | Name | Kind | Job | Value |
