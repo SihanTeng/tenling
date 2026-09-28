@@ -31,4 +31,4 @@ The app does not collect data or track users. Documents stay on the device unles
 
 ## Still required before submission
 
-Real device/simulator screenshots and final functional verification; Mac App Store upload; processing and export compliance for iOS build 4; final Apple review and approval. The Data Not Collected label is published, No Third-Party Content is saved, the age rating is 4+, and the authorized App Review contact is filled in for both platforms.
+Real device/simulator screenshots and final functional verification; processing and export compliance for the uploaded iOS and Mac builds; final Apple review and approval. The Data Not Collected label is published, No Third-Party Content is saved, the age rating is 4+, and the authorized App Review contact is filled in for both platforms.
